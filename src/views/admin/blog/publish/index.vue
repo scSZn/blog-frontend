@@ -50,25 +50,37 @@
           </el-upload>
         </el-form-item>
       </el-form>
-      <el-tab-pane label="Markdown" name="markdown"><Vditor /></el-tab-pane>
+      <el-tab-pane label="MD编辑器" name="markdown">
+        <mavon-editor v-model="markdown_content" class="editor" :xss-options="xssOptions" :tab-size="4" />
+      </el-tab-pane>
+      <el-tab-pane label="富文本编辑器" name="fulltext">
+        <Tinymce v-model="fulltext_content" :height="height" />
+      </el-tab-pane>
     </el-tabs>
-
     <router-view />
   </div>
 </template>
 
 <script>
-import Vditor from '@/components/Vditor'
+// import Vditor from '@/components/Vditor'
+import { mavonEditor } from 'mavon-editor'
+import Tinymce from '@/components/Tinymce'
 import { getAllSeries } from '@/api/admin/series'
-import { getAllTags } from '@/api/admin/tag'
+import { getAllTags } from '@/api/admin/manage/tag'
+import 'mavon-editor/dist/css/index.css'
 
 export default {
   name: 'PublishBlog',
   components: {
-    Vditor
+    mavonEditor, Tinymce
   },
   data: function() {
     return {
+      xssOptions: {
+        whiteList: {
+          span: ['style']
+        }
+      },
       activeName: 'markdown',
       base: {
         title: '',
@@ -77,7 +89,9 @@ export default {
       },
       series: [],
       tags: [],
-      background_images: []
+      background_images: [],
+      markdown_content: '',
+      fulltext_content: ''
     }
   },
   mounted() {
@@ -87,13 +101,11 @@ export default {
     getAllTags().then(response => {
       this.tags = response.data
     })
+    this.height = window.innerHeight
   },
   methods: {
     handleClick: function(tab, event) {
-      this.$router.push({
-        name: tab
-      })
-      console.log(this.series)
+      this.activeName = tab.name
     },
     submitUpload() {
       this.$refs.background_image.submit()
@@ -132,5 +144,9 @@ export default {
 
 .el-select {
   width: 100%;
+}
+
+.editor{
+  height: calc(100vh);
 }
 </style>

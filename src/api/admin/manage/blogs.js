@@ -39,3 +39,11 @@ export function updateArticle(data) {
     data
   })
 }
+
+export function getArticleStatusConfig(params) {
+  return request({
+    url: '/api/v1/articles/status',
+    method: 'get',
+    params
+  })
+}

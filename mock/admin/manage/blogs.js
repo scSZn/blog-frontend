@@ -28,24 +28,9 @@ for (let i = 0; i < count; i++) {
         tag_id: 3
       }
     ],
-    'status|1': [
-      {
-        value: 1,
-        name: 'draft',
-        display: '草稿'
-      },
-      {
-        value: 2,
-        name: 'published',
-        display: '发布'
-      },
-      {
-        value: 3,
-        name: 'deleted',
-        display: '删除'
-      }
-    ],
-    pageviews: '@integer(300, 5000)'
+    'status|1': [0, 10, 20, 30, 40, 50],
+    view_count: '@integer(300, 5000)',
+    like_count: '@integer(300, 5000)'
   }))
 }
 

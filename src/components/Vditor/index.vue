@@ -22,15 +22,7 @@ export default {
   mounted() {
     this.contentEditor = new Vditor(this.bind_id, {
       minHeight: window.innerHeight,
-      toolbarConfig: {
-        pin: true
-      },
-      cache: {
-        enable: false
-      },
-      after: () => {
-        this.contentEditor.setValue('')
-      }
+      width: window.innerWidth * 0.9
     })
   }
 }

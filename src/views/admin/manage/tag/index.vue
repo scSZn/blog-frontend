@@ -4,13 +4,16 @@
       <el-row>
         <el-col :span="10">
           <el-form-item label="标签名称">
-            <el-input v-model="search_param.name" placeholder="标签名称" class="filter-item" @keyup.enter.native="handleFilter" />
+            <el-input v-model="param.search.name" placeholder="标签名称" class="filter-item" @keyup.enter.native="handleFilter" />
           </el-form-item>
         </el-col>
         <el-col :span="10">
           <el-form-item label-width="10px">
             <el-button v-waves class="filter-item" type="primary" icon="el-icon-search" @click="handleFilter">
               搜索
+            </el-button>
+            <el-button v-waves class="filter-item" type="success" icon="el-icon-plus" @click="createDialogVisible = true">
+              创建新标签
             </el-button>
           </el-form-item>
         </el-col>
@@ -26,9 +29,10 @@
       stripe
       highlight-current-row
       style="width: 95%; margin: 0 auto;"
+      :header-cell-style="{'text-align': 'center'}"
       @sort-change="sortChange"
     >
-      <el-table-column label="标签ID" prop="id" sortable="custom" align="center" width="100px" :class-name="getSortClass('id')">
+      <el-table-column label="标签ID" prop="id" sortable="custom" align="center" width="150px" show-overflow-tooltip>
         <template slot-scope="{row}">
           <span>{{ row.tag_id }}</span>
         </template>
@@ -38,28 +42,28 @@
           <span class="link-type" @click="handleUpdate(row)">{{ row.tag_name }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="文章数量" align="center" width="95">
+      <el-table-column label="文章数量" align="center" width="150px">
         <template slot-scope="{row}">
-          <span v-if="row.blog_count" class="link-type" @click="handleFetchPv(row.blog_count)">{{ row.blog_count }}</span>
+          <span v-if="row.article_count" class="link-type">{{ row.article_count }}</span>
           <span v-else>0</span>
         </template>
       </el-table-column>
-      <el-table-column label="状态" class-name="status-col" width="100">
+      <el-table-column label="状态" class-name="status-col" width="100px">
         <template slot-scope="{row}">
-          <el-tag :type="row.status.name | statusFilter">
-            {{ row.status.display }}
+          <el-tag :type="row.status | statusTypeFilter">
+            {{ row.status | statusDisplayFilter }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" align="center" width="230" class-name="small-padding fixed-width">
+      <el-table-column label="操作" align="center" width="300" class-name="small-padding fixed-width">
         <template slot-scope="{row,$index}">
           <el-button type="primary" size="mini" @click="handleUpdate(row)">
             修改
           </el-button>
-          <el-button :disabled="row.status.name==='draft'" size="mini" @click="handleModifyStatus(row,'draft')">
+          <el-button :disabled="row.status===20" size="mini" @click="handleModifyStatus(row,'draft')">
             禁用
           </el-button>
-          <el-button size="mini" type="danger" @click="handleDelete(row,$index)">
+          <el-button :disabled="row.status===50" size="mini" type="danger" @click="handleDelete(row,$index)">
             删除
           </el-button>
         </template>
@@ -70,33 +74,52 @@
       <pagination
         v-show="total>0"
         :total="total"
-        :page.sync="search_param.page"
-        :limit.sync="search_param.limit"
-        @pagination="getTagList"
+        :page.sync="param.search.page"
+        :limit.sync="param.search.limit"
+        @pagination="refreshTagList"
       />
     </div>
+
+    <el-dialog :visible.sync="createDialogVisible" width="50%" title="创建新标签" @close="param.createTag.tag_name = ''">
+      <el-form :model="param.createTag" :rules="rules.createTag">
+        <el-form-item label="标签名称" prop="tag_name">
+          <el-input v-model="param.createTag.tag_name" placeholder="标签名称" @keyup.enter.native="handleFilter" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="createDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="createTag">提交</el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script>
-import { fetchPv } from '@/api/admin/manage/blogs'
 import waves from '@/directive/waves' // waves directive
 import { parseTime } from '@/utils'
 import Pagination from '@/components/Pagination' // secondary package based on el-pagination
-import { getAllTags } from '@/api/admin/tag'
-import { getAllStatus } from '@/api/admin/status'
-import axios from 'axios'
+import { createTag, getTags, getTagStatusConfig } from '@/api/admin/tag'
 
 export default {
   name: 'BlogManage',
   components: { Pagination },
   directives: { waves },
   filters: {
-    statusFilter(status) {
+    statusTypeFilter(status) {
       const statusMap = {
-        published: 'success',
-        draft: 'info',
-        deleted: 'danger'
+        20: 'success',
+        40: 'info',
+        50: 'danger'
+      }
+      return statusMap[status]
+    },
+    statusDisplayFilter(status) {
+      const statusMap = {
+        20: '生效中',
+        40: '禁用',
+        50: '已删除'
       }
       return statusMap[status]
     }
@@ -107,21 +130,26 @@ export default {
       tags: null,
       total: 0,
       listLoading: true,
-      search_param: {
-        page: 1,
-        limit: 20,
-        name: undefined
+      param: {
+        search: {
+          page: 1,
+          limit: 20,
+          name: undefined
+        },
+        createTag: {
+          tag_name: ''
+        }
       },
-      dialogFormVisible: false,
+      statusOptions: null,
+      createDialogVisible: false,
       dialogStatus: '',
-      textMap: {
-        update: 'Edit',
-        create: 'Create'
-      },
-      dialogPvVisible: false,
       rules: {
-        type: [{ required: true, message: 'type is required', trigger: 'change' }],
-        title: [{ required: true, message: 'title is required', trigger: 'blur' }]
+        createTag: {
+          tag_name: [
+            { required: true, message: '请输入活动名称', trigger: 'blur' },
+            { min: 3, max: 5, message: '长度在 3 到 5 个字符', trigger: 'blur' }
+          ]
+        }
       }
     }
   },
@@ -130,39 +158,23 @@ export default {
   },
   methods: {
     load() {
-      this.listLoading = true
-      axios.all([
-        getAllTags().then(response => {
-          this.tags = response.data
-          console.log('tags is ' + this.tags)
-
-          setTimeout(() => {
-            this.listLoading = false
-          }, 1.5 * 1000)
-        }),
-        getAllStatus().then(response => {
-          this.statusOptions = response.data
-        })
-      ]).then(
-        axios.spread(() => {
-          this.listLoading = false
-        })
-      ).finally(() => {
-        this.listLoading = false
+      this.refreshTagList()
+      getTagStatusConfig().then(response => {
+        this.statusOptions = response.data
       })
     },
     handleFilter() {
-      this.search_param.page = 1
-      this.getTagList()
+      this.param.search.page = 1
+      this.refreshTagList()
     },
-    getTagList() {
-      getAllTags(this.search_param).then(response => {
-        this.tags = response.data
-        console.log('tags is ' + this.tags)
-
-        setTimeout(() => {
-          this.listLoading = false
-        }, 1.5 * 1000)
+    refreshTagList() {
+      this.listLoading = true
+      getTags(this.param.search).then(response => {
+        this.tags = response.data.list
+        this.total = response.data.total
+        console.log('this.tags is ' + this.tags)
+      }).finally(() => {
+        this.listLoading = false
       })
     },
     handleModifyStatus(row, status) {
@@ -173,18 +185,7 @@ export default {
       row.status = status
     },
     sortChange(data) {
-      const { prop, order } = data
-      if (prop === 'id') {
-        this.sortByID(order)
-      }
-    },
-    sortByID(order) {
-      if (order === 'ascending') {
-        this.search_param.sort = '+id'
-      } else {
-        this.search_param.sort = '-id'
-      }
-      this.handleFilter()
+
     },
     handleUpdate(row) {
 
@@ -198,26 +199,6 @@ export default {
       })
       this.list.splice(index, 1)
     },
-    handleFetchPv(pv) {
-      fetchPv(pv).then(response => {
-        this.pvData = response.data.pvData
-        this.dialogPvVisible = true
-      })
-    },
-    handleDownload() {
-      this.downloadLoading = true
-      import('@/vendor/Export2Excel').then(excel => {
-        const tHeader = ['timestamp', 'title', 'type', 'importance', 'status']
-        const filterVal = ['timestamp', 'title', 'type', 'importance', 'status']
-        const data = this.formatJson(filterVal)
-        excel.export_json_to_excel({
-          header: tHeader,
-          data,
-          filename: 'table-list'
-        })
-        this.downloadLoading = false
-      })
-    },
     formatJson(filterVal) {
       return this.list.map(v => filterVal.map(j => {
         if (j === 'timestamp') {
@@ -227,9 +208,14 @@ export default {
         }
       }))
     },
-    getSortClass: function(key) {
-      const sort = this.search_param.sort
-      return sort === `+${key}` ? 'ascending' : 'descending'
+    createTag() {
+      createTag(this.param.createTag).then(response => {
+        this.createDialogVisible = false
+        this.listLoading = true
+        this.refreshTagList()
+      }).catch(() => {
+        this.createDialogVisible = false
+      })
     }
   }
 }
