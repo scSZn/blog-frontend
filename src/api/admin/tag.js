@@ -8,6 +8,13 @@ export function createTag(data) {
   })
 }
 
+export function deleteTag(tagID) {
+  return request({
+    url: '/api/v1/admin/tags/' + tagID,
+    method: 'delete'
+  })
+}
+
 export function getTags(params) {
   return request({
     url: '/api/v1/admin/tags',

@@ -63,7 +63,7 @@
           <el-button :disabled="row.status===20" size="mini" @click="handleModifyStatus(row,'draft')">
             禁用
           </el-button>
-          <el-button :disabled="row.status===50" size="mini" type="danger" @click="handleDelete(row,$index)">
+          <el-button :disabled="row.status===50" size="mini" type="danger" @click="deleteTag(row,$index)">
             删除
           </el-button>
         </template>
@@ -100,7 +100,7 @@
 import waves from '@/directive/waves' // waves directive
 import { parseTime } from '@/utils'
 import Pagination from '@/components/Pagination' // secondary package based on el-pagination
-import { createTag, getTags, getTagStatusConfig } from '@/api/admin/tag'
+import { createTag, getTags, getTagStatusConfig, deleteTag } from '@/api/admin/tag'
 
 export default {
   name: 'BlogManage',
@@ -190,14 +190,16 @@ export default {
     handleUpdate(row) {
 
     },
-    handleDelete(row, index) {
-      this.$notify({
-        title: 'Success',
-        message: 'Delete Successfully',
-        type: 'success',
-        duration: 2000
+    deleteTag(row, index) {
+      deleteTag(row.tag_id).then(response => {
+        this.refreshTagList()
+        this.$notify({
+          title: '',
+          message: '删除成功',
+          type: 'success',
+          duration: 2000
+        })
       })
-      this.list.splice(index, 1)
     },
     formatJson(filterVal) {
       return this.list.map(v => filterVal.map(j => {
@@ -211,7 +213,6 @@ export default {
     createTag() {
       createTag(this.param.createTag).then(response => {
         this.createDialogVisible = false
-        this.listLoading = true
         this.refreshTagList()
       }).catch(() => {
         this.createDialogVisible = false
