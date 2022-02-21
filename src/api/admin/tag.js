@@ -15,6 +15,14 @@ export function deleteTag(tagID) {
   })
 }
 
+export function modifyTagStatus(tagID, data) {
+  return request({
+    url: '/api/v1/admin/tags/status/' + tagID,
+    method: 'put',
+    data
+  })
+}
+
 export function getTags(params) {
   return request({
     url: '/api/v1/admin/tags',

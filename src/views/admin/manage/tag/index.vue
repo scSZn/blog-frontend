@@ -60,8 +60,11 @@
           <el-button type="primary" size="mini" @click="handleUpdate(row)">
             修改
           </el-button>
-          <el-button :disabled="row.status===20" size="mini" @click="handleModifyStatus(row,'draft')">
+          <el-button v-if="row.status===20" size="mini" @click="modifyTagStatus(row, 40)">
             禁用
+          </el-button>
+          <el-button v-if="row.status===40" size="mini" @click="modifyTagStatus(row, 20)">
+            启用
           </el-button>
           <el-button :disabled="row.status===50" size="mini" type="danger" @click="deleteTag(row,$index)">
             删除
@@ -100,7 +103,7 @@
 import waves from '@/directive/waves' // waves directive
 import { parseTime } from '@/utils'
 import Pagination from '@/components/Pagination' // secondary package based on el-pagination
-import { createTag, getTags, getTagStatusConfig, deleteTag } from '@/api/admin/tag'
+import { createTag, getTags, getTagStatusConfig, deleteTag, modifyTagStatus } from '@/api/admin/tag'
 
 export default {
   name: 'BlogManage',
@@ -142,7 +145,6 @@ export default {
       },
       statusOptions: null,
       createDialogVisible: false,
-      dialogStatus: '',
       rules: {
         createTag: {
           tag_name: [
@@ -177,12 +179,19 @@ export default {
         this.listLoading = false
       })
     },
-    handleModifyStatus(row, status) {
-      this.$message({
-        message: '操作Success',
-        type: 'success'
+    modifyTagStatus(row, status) {
+      modifyTagStatus(row.tag_id, { status: status }).then(response => {
+        this.$message({
+          message: 'Success',
+          type: 'success'
+        })
+        row.status = status
+      }).catch(response => {
+        this.$message({
+          message: 'Fail',
+          type: 'error'
+        })
       })
-      row.status = status
     },
     sortChange(data) {
 
