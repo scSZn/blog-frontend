@@ -4,12 +4,12 @@
       <el-row>
         <el-col :span="10">
           <el-form-item label="标签名称">
-            <el-input v-model="param.search.name" placeholder="标签名称" class="filter-item" @keyup.enter.native="handleFilter" />
+            <el-input v-model="param.search.tag_name" placeholder="标签名称" class="filter-item" @keyup.enter.native="refreshTagList" />
           </el-form-item>
         </el-col>
         <el-col :span="10">
           <el-form-item label-width="10px">
-            <el-button v-waves class="filter-item" type="primary" icon="el-icon-search" @click="handleFilter">
+            <el-button v-waves class="filter-item" type="primary" icon="el-icon-search" @click="refreshTagList">
               搜索
             </el-button>
             <el-button v-waves class="filter-item" type="success" icon="el-icon-plus" @click="createDialogVisible = true">
@@ -42,7 +42,12 @@
           <span class="link-type" @click="handleUpdate(row)">{{ row.tag_name }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="文章数量" align="center" width="150px">
+      <el-table-column label="创建时间" prop="created_at" width="160px" align="center" sortable="custom">
+        <template slot-scope="{row}">
+          <span>{{ row.created_at }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column label="文章数量" align="center" width="120px" prop="article_count" sortable="custom">
         <template slot-scope="{row}">
           <span v-if="row.article_count" class="link-type">{{ row.article_count }}</span>
           <span v-else>0</span>
@@ -84,9 +89,9 @@
     </div>
 
     <el-dialog :visible.sync="createDialogVisible" width="50%" title="创建新标签" @close="param.createTag.tag_name = ''">
-      <el-form :model="param.createTag" :rules="rules.createTag">
+      <el-form ref="createTagForm" :model="param.createTag" :rules="rules.createTag">
         <el-form-item label="标签名称" prop="tag_name">
-          <el-input v-model="param.createTag.tag_name" placeholder="标签名称" @keyup.enter.native="handleFilter" />
+          <el-input v-model="param.createTag.tag_name" placeholder="标签名称" @keyup.enter.native="createTag" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -137,7 +142,9 @@ export default {
         search: {
           page: 1,
           limit: 20,
-          name: undefined
+          order_key: null,
+          order: null,
+          tag_name: undefined
         },
         createTag: {
           tag_name: ''
@@ -148,8 +155,7 @@ export default {
       rules: {
         createTag: {
           tag_name: [
-            { required: true, message: '请输入活动名称', trigger: 'blur' },
-            { min: 3, max: 5, message: '长度在 3 到 5 个字符', trigger: 'blur' }
+            { required: true, message: '请输入活动名称', trigger: 'blur' }
           ]
         }
       }
@@ -169,14 +175,15 @@ export default {
       this.param.search.page = 1
       this.refreshTagList()
     },
-    refreshTagList() {
+    refreshTagList(callback) {
+      console.log(callback)
       this.listLoading = true
       getTags(this.param.search).then(response => {
         this.tags = response.data.list
         this.total = response.data.total
-        console.log('this.tags is ' + this.tags)
       }).finally(() => {
         this.listLoading = false
+        if (callback !== undefined && typeof callback === 'function') { callback() }
       })
     },
     modifyTagStatus(row, status) {
@@ -194,7 +201,15 @@ export default {
       })
     },
     sortChange(data) {
-
+      console.log(data)
+      this.param.search.order_key = data.prop
+      if (data.order !== null) {
+        this.param.search.order = data.order === 'ascending' ? 'asc' : 'desc'
+      }
+      this.refreshTagList(() => {
+        this.param.search.order_key = null
+        this.param.search.order = null
+      })
     },
     handleUpdate(row) {
 
@@ -220,11 +235,15 @@ export default {
       }))
     },
     createTag() {
-      createTag(this.param.createTag).then(response => {
-        this.createDialogVisible = false
-        this.refreshTagList()
-      }).catch(() => {
-        this.createDialogVisible = false
+      this.$refs.createTagForm.validate(valid => {
+        if (valid) {
+          createTag(this.param.createTag).then(response => {
+            this.createDialogVisible = false
+            this.refreshTagList()
+          }).catch(() => {
+            this.createDialogVisible = false
+          })
+        }
       })
     }
   }
